@@ -20,7 +20,6 @@ void execute_command(parsed_input parsed) {
         }
         if (pid == 0) {
             // Child process
-            // Execute the command
             execvp(parsed.inputs[0].data.cmd.args[0], parsed.inputs[0].data.cmd.args);
             perror("exec");
             exit(EXIT_FAILURE);
@@ -30,8 +29,6 @@ void execute_command(parsed_input parsed) {
         }
     }
     else {
-        //TODO: SUBSHELL
-        //cout << "Subshell\n";
         parsed_input temp;
         if(parse_line(parsed.inputs[0].data.subshell, &temp)) {
             execute_subshell(temp);
@@ -49,8 +46,8 @@ void execute_pipeline(parsed_input parsed) {
         if(parsed.inputs[i].type == INPUT_TYPE_COMMAND) {
             commands[i] = parsed.inputs[i].data.cmd.args;
         } else {
-            cout << "Subshell input type\n";
-            // TODO: SUBSHELL
+            //cout << "Subshell input type\n";
+            //redirected to subshell
         }
     }
 
@@ -59,22 +56,22 @@ void execute_pipeline(parsed_input parsed) {
     // Iterate over commands
     for (int i = 0; i < parsed.num_inputs; i++) {
         if (i < parsed.num_inputs - 1) {
-            pipe(pipes[i]); // Create a pipe for each command except the last one
+            pipe(pipes[i]);
         }
         
-        pid_t pid = fork(); // Fork a child process
+        pid_t pid = fork();
         
         if (pid == 0) { // Child process
             // Set up input redirection
             if (i > 0) {
-                dup2(pipes[i - 1][0], STDIN_FILENO); // Read from the previous pipe
-                close(pipes[i - 1][1]); // Close write end of the previous pipe
+                dup2(pipes[i - 1][0], STDIN_FILENO);
+                close(pipes[i - 1][1]);
             }
             
             // Set up output redirection
             if (i < parsed.num_inputs - 1) {
-                dup2(pipes[i][1], STDOUT_FILENO); // Write to the current pipe
-                close(pipes[i][0]); // Close read end of the current pipe
+                dup2(pipes[i][1], STDOUT_FILENO);
+                close(pipes[i][0]);
             }
             
             // Execute the command
@@ -98,13 +95,12 @@ void execute_pipeline(parsed_input parsed) {
             exit(EXIT_FAILURE);
         }
     }
-    // Close all pipe descriptors in parent process
+    
     for (int i = 0; i < parsed.num_inputs - 1; i++) {
         close(pipes[i][0]);
         close(pipes[i][1]);
     }
     
-    // Wait for all child processes to finish
     for (int i = 0; i < parsed.num_inputs; i++) {
         wait(NULL);
     }
@@ -130,45 +126,6 @@ void execute_sequential(parsed_input parsed) {
                 exit(EXIT_SUCCESS);
             }
             else if(parsed.inputs[i].type == INPUT_TYPE_PIPELINE) {
-                //cout << "this part called" << endl;
-                
-                //single_input_union temp_data = parsed.inputs[i].data;
-                //pretty_print(&parsed);
-                
-                /*
-                command cmd1 = parsed.inputs[i].data.pline.commands[0];
-                command cmd2 = parsed.inputs[i].data.pline.commands[1];
-                
-                single_input_union temp_data1 = {
-                    cmd: parsed.inputs[i].data.pline.commands[0];
-                };
-
-                single_input_union temp_data2 = {
-                    cmd: parsed.inputs[i].data.pline.commands[1];
-                };
-
-                single_input temp_input1 = {
-                    .type = INPUT_TYPE_COMMAND,
-                    .data = {
-                        cmd: parsed.inputs[i].data.pline.commands[0];
-                    };
-                };
-
-                single_input temp_input2 = {
-                    .type = INPUT_TYPE_COMMAND,
-                    .data = {
-                        cmd: parsed.inputs[i].data.pline.commands[1];
-                    };
-                };
-
-                parsed_input temp = {
-                    .inputs = {temp_input1, temp_input2},
-                    .separator = SEPARATOR_PIPE,
-                    .num_inputs = 2 // ????
-                };
-                */
-                //now we need to make a for that does exact same thing up on parsed_input temp
-                //but num_inputs is important for a for cycle
 
                 single_input temp_inputs[MAX_INPUTS];
 
@@ -193,28 +150,6 @@ void execute_sequential(parsed_input parsed) {
                 }
                 
                 execute_pipeline(temp);
-                //pretty_print(&temp);
-                //pretty_print(&parsed);
-                /*
-                cout << parsed.inputs[i].data.pline.num_commands << endl;
-                for(int i = 0; parsed.inputs[i].data.pline.commands[0].args[0][i] != 0; i++){
-                    cout << parsed.inputs[i].data.pline.commands[0].args[0][i] << endl;
-                }
-                for(int i = 0; parsed.inputs[i].data.pline.commands[0].args[0][i] != 0; i++){
-                    cout << parsed.inputs[i].data.pline.commands[0].args[0][i] << endl;
-                }
-                */
-                //cout << parsed.inputs[i].data.subshell << endl;
-                //execute_subshell(temp);
-                /*
-                parsed_input temp;
-                //execute_pipeline(temp);
-                if(parse_line(parsed.inputs[i].data.subshell, &temp)){
-                    execute_subshell(temp);
-                    free_parsed_input(&temp);
-                }
-                */
-                //execute_subshell(temp);
                 exit(EXIT_SUCCESS);
             }
             else {
@@ -288,7 +223,7 @@ void execute_parallel(parsed_input parsed){
                     execute_subshell(temp);
                     free_parsed_input(&temp);
                 } else {
-                    //cout << "Failed to parse the input\n" << endl;
+                    cout << "Failed to parse the input\n" << endl;
                 }
                 exit(EXIT_SUCCESS);
             }
@@ -305,25 +240,18 @@ void execute_parallel(parsed_input parsed){
 }
 
 void execute_subshell(parsed_input parsed){
-    // Successfully parsed the input
     if(parsed.separator == SEPARATOR_PIPE){
-        //cout << "Pipeline detected\n";
         execute_pipeline(parsed);
     }
     else if(parsed.separator == SEPARATOR_SEQ){
-        //cout << "Sequential detected\n";
         execute_sequential(parsed);
     }
     else if(parsed.separator == SEPARATOR_PARA){
-        //cout << "Parallel detected\n";
         execute_parallel(parsed);
     }
     else{
-        //cout << "No separator detected\n";
         execute_command(parsed);
     }
-    // Don't forget to free the allocated memory after you're done using it
-    // free_parsed_input(&parsed);
 }
 
 int main() {
@@ -340,28 +268,20 @@ int main() {
             parsed_input parsed;
             if (parse_line(input, &parsed)) {
                 // Successfully parsed the input
-                //cout << "Input count: " << parsed.num_inputs << endl;
                 if(parsed.separator == SEPARATOR_PIPE){
-                    //cout << "Pipeline detected\n";
                     execute_pipeline(parsed);
                 }
                 else if(parsed.separator == SEPARATOR_SEQ){
-                    //cout << "Sequential detected\n";
                     execute_sequential(parsed);
                 }
                 else if(parsed.separator == SEPARATOR_PARA){
-                    //cout << "Parallel detected\n";
                     execute_parallel(parsed);
                 }
                 else{
-                    //cout << "No separator detected\n";
                     execute_command(parsed);
                 }
-                    
-                // Don't forget to free the allocated memory after you're done using it
                 free_parsed_input(&parsed);
             } else {
-                // Failed to parse the input, handle the error if needed
                 cout << "Failed to parse the input\n" << endl;
             }
         }
