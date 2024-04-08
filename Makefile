@@ -1,15 +1,20 @@
-CC = gcc
-CFLAGS = -Wall -Wextra -std=c99
+CC = g++
+CFLAGS = -w -Wextra -std=c++11
 
-SRCS = eshell.c
+SRCS = eshell.cpp
 EXECUTABLE = eshell
+INCLUDES = parser.c
 
-.PHONY: all clean
+.PHONY: all
 
-all: clean $(EXECUTABLE)
+all: $(EXECUTABLE)
 
 $(EXECUTABLE): $(SRCS)
-	$(CC) $(CFLAGS) $(SRCS) -o $(EXECUTABLE)
+	$(CC) $(CFLAGS) $(INCLUDES) $(SRCS) -o $(EXECUTABLE)
 
 clean:
 	rm -f $(EXECUTABLE)
+
+run:
+	make all
+	./$(EXECUTABLE)
